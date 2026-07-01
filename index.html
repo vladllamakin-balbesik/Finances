@@ -488,7 +488,36 @@
         updateDashboard();
 
         // Подгружаем свежие данные из Google Таблицы
-        loadFromCloud();
+        async function loadFromCloud() {
+        if (!CLOUD_API_URL || CLOUD_API_URL === "https://script.google.com/macros/s/AKfycbyy4oLZWYryW7HuhQtLE6vniNTh96PLtEjyWgIBiLiYUKTsd2kv7sOYf4thTlXlULQ/exec") return;
+        try {
+            const res = await fetch(CLOUD_API_URL);
+            const textData = await res.text();
+            
+            if (!textData || textData.trim() === "" || textData.includes("<!DOCTYPE html>")) return;
+            
+            const cloudData = JSON.parse(textData);
+            
+            if (cloudData && typeof cloudData === 'object' && cloudData.transactions) {
+                state.transactions = cloudData.transactions;
+                state.limits = cloudData.limits || {};
+                state.subscriptions = cloudData.subscriptions || [];
+                state.categories = cloudData.categories || DEFAULT_CATEGORIES;
+                state.savingsGoal = cloudData.savingsGoal || 25000;
+                
+                // Данные загружены, теперь разрешаем сохранение
+                isDataLoaded = true; 
+                
+                updateDashboard(); // Обновляем интерфейс уже с данными
+            } else {
+                // Если данные пришли, но они пустые - не трогаем, пусть грузится то что есть
+                isDataLoaded = true; 
+            }
+        } catch (e) {
+            console.error("Ошибка:", e);
+            isDataLoaded = true; // Разрешаем работу даже при ошибке
+        }
+    };
     });
 
     // --- 4. CORE RENDER LOGIC ---
@@ -1272,9 +1301,24 @@
                     }
                 }
             }
-            updateDashboard();
-            showToast(`Импортировано записей: ${importedCount}`);
-            event.target.value = ''; // reset input
+           let isDataLoaded = false; // Добавь эту переменную в начале блока <script>
+
+    function updateDashboard(silent = false) {
+        // Если данные еще не загружены, мы только рендерим, но не сохраняем в облако
+        if (isDataLoaded) {
+            saveState();
+        }
+        
+        // ... (весь остальной код функции остается прежним)
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        // ... далее весь код рендера
+        renderTable(filtered);
+        renderSummary();
+        renderWallets();
+        renderBudgets();
+        renderSubscriptions();
+        renderChart(filtered.filter(t => t.type === 'expense'));
+    }
         };
         reader.readAsText(file);
     }
