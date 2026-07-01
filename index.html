@@ -1,9 +1,23 @@
+Я всё собрал воедино и почистил код. При копировании некоторые куски текста перемешались: функция `updateDashboard` случайно попала в самый низ внутрь импорта CSV, `loadFromCloud` задвоилась, а самое главное — в функции загрузки случайно образовалась блокировка твоей же ссылки.
+
+### Что именно я исправил в итоговом файле:
+
+1. **Вернул `isDataLoaded` на место:** Объявил переменную там, где она должна быть (в блоке с глобальными переменными, строка 449).
+2. **Исправил критическую ошибку с URL:** В твоем варианте было написано `if (CLOUD_API_URL === "https://script.google.../exec") return;`. Из-за этого скрипт видел твою правильную ссылку, думал, что это заглушка, и мгновенно останавливался, ничего не скачивая. Я убрал эту проверку.
+3. **Восстановил `updateDashboard`:** Вернул обратно логику фильтрации по датам, которая затерлась при вставке, и аккуратно обернул функцию сохранения в проверку `if (isDataLoaded)`.
+4. **Почистил дубликаты:** Удалил сломанные куски кода из самого конца файла (из `importCSV`) и убрал лишнюю копию `loadFromCloud`.
+5. **Убрал предупреждение из консоли:** Судя по твоему скриншоту, браузер ругался на устаревший тег. Я добавил актуальный `<meta name="mobile-web-app-capable" content="yes">`, чтобы это предупреждение исчезло.
+
+Полностью скопируй код ниже и замени им всё содержимое файла `index.html` на GitHub. Не забудь предварительно вручную вернуть свои старые данные в ячейку A1 в Google Таблице!
+
+```html
 <!DOCTYPE html>
 <html lang="ru" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
     <title>Мои Финансы PRO</title>
@@ -445,6 +459,7 @@
 
     let chartInstance = null;
     let activeModal = null;
+    let isDataLoaded = false; // ПРЕДОХРАНИТЕЛЬ
 
     // Formatter for currency
     const formatMoney = (amount) => new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH', maximumFractionDigits: 0 }).format(amount);
@@ -484,45 +499,19 @@
         document.getElementById('transaction-form').addEventListener('submit', handleTransactionSubmit);
         document.getElementById('subscription-form').addEventListener('submit', handleSubscriptionSubmit);
 
-        // Run Main Render
+        // Run Main Render (покажет локальные данные без сохранения в облако)
         updateDashboard();
 
         // Подгружаем свежие данные из Google Таблицы
-        async function loadFromCloud() {
-        if (!CLOUD_API_URL || CLOUD_API_URL === "https://script.google.com/macros/s/AKfycbyy4oLZWYryW7HuhQtLE6vniNTh96PLtEjyWgIBiLiYUKTsd2kv7sOYf4thTlXlULQ/exec") return;
-        try {
-            const res = await fetch(CLOUD_API_URL);
-            const textData = await res.text();
-            
-            if (!textData || textData.trim() === "" || textData.includes("<!DOCTYPE html>")) return;
-            
-            const cloudData = JSON.parse(textData);
-            
-            if (cloudData && typeof cloudData === 'object' && cloudData.transactions) {
-                state.transactions = cloudData.transactions;
-                state.limits = cloudData.limits || {};
-                state.subscriptions = cloudData.subscriptions || [];
-                state.categories = cloudData.categories || DEFAULT_CATEGORIES;
-                state.savingsGoal = cloudData.savingsGoal || 25000;
-                
-                // Данные загружены, теперь разрешаем сохранение
-                isDataLoaded = true; 
-                
-                updateDashboard(); // Обновляем интерфейс уже с данными
-            } else {
-                // Если данные пришли, но они пустые - не трогаем, пусть грузится то что есть
-                isDataLoaded = true; 
-            }
-        } catch (e) {
-            console.error("Ошибка:", e);
-            isDataLoaded = true; // Разрешаем работу даже при ошибке
-        }
-    };
+        loadFromCloud();
     });
 
     // --- 4. CORE RENDER LOGIC ---
     function updateDashboard() {
-        saveState();
+        // Только если данные успешно скачались из облака, мы разрешаем их туда сохранять
+        if (isDataLoaded) {
+            saveState();
+        }
         
         // 1. Get filtered data
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -572,12 +561,15 @@
 
     // Скачивание данных из облака
     async function loadFromCloud() {
-        if (!CLOUD_API_URL || CLOUD_API_URL === "ВСТАВЬ_СЮДА_ССЫЛКУ_ИЗ_ШАГА_2") return;
+        if (!CLOUD_API_URL) return; // Убрали проверку на твой собственный URL, чтобы скрипт работал
         try {
             const res = await fetch(CLOUD_API_URL);
             const textData = await res.text(); // Читаем как текст, чтобы избежать ошибки парсинга
             
-            if (!textData || textData.trim() === "") return; // Защита от пустой строки
+            if (!textData || textData.trim() === "") {
+                isDataLoaded = true; // Если там пусто, снимаем блок и разрешаем сохранение с нуля
+                return; 
+            }
             
             const cloudData = JSON.parse(textData); 
             
@@ -595,17 +587,23 @@
                 localStorage.setItem('fin_categories', JSON.stringify(state.categories));
                 localStorage.setItem('fin_savings_goal', state.savingsGoal);
                 
+                // Снимаем блокировку
+                isDataLoaded = true;
+                
                 // Перерисовываем интерфейс со свежими данными
                 updateDashboard();
+            } else {
+                isDataLoaded = true;
             }
         } catch (e) {
             console.error("Ошибка загрузки данных из облака:", e);
+            isDataLoaded = true; // Разрешаем работу даже при ошибке, чтобы сайт не сломался
         }
     }
 
     // Выгрузка данных в облако
     function saveToCloud() {
-        if (!CLOUD_API_URL || CLOUD_API_URL === "ВСТАВЬ_СЮДА_ССЫЛКУ_ИЗ_ШАГА_2") return;
+        if (!CLOUD_API_URL) return;
         const dataToSave = {
             transactions: state.transactions,
             limits: state.limits,
@@ -1301,27 +1299,14 @@
                     }
                 }
             }
-           let isDataLoaded = false; // Добавь эту переменную в начале блока <script>
-
-    function updateDashboard(silent = false) {
-        // Если данные еще не загружены, мы только рендерим, но не сохраняем в облако
-        if (isDataLoaded) {
-            saveState();
-        }
-        
-        // ... (весь остальной код функции остается прежним)
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        // ... далее весь код рендера
-        renderTable(filtered);
-        renderSummary();
-        renderWallets();
-        renderBudgets();
-        renderSubscriptions();
-        renderChart(filtered.filter(t => t.type === 'expense'));
-    }
+            updateDashboard();
+            showToast(`Импортировано записей: ${importedCount}`);
+            event.target.value = ''; // reset input
         };
         reader.readAsText(file);
     }
 </script>
 </body>
 </html>
+
+```
