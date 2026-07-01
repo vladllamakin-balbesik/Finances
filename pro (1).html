@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4f46e5">
+    <title>Мои Финансы PRO</title>
+
+    <!-- Tailwind CSS (с включенной поддержкой темной темы через класс) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Hide scrollbar for horizontal wallet list but allow scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animations */
+        .modal-enter { animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .toast-enter { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+<div class="flex-1 overflow-y-auto w-full custom-scrollbar">
+    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                    <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none">
+                        <i class="fas fa-wallet text-xl"></i>
+                    </div>
+                    Мои Финансы
+                </h1>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-1 ml-12" id="current-date-header"></p>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <!-- Data Actions (Export/Import) -->
+                <div class="relative group">
+                    <button class="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm" title="Данные">
+                        <i class="fas fa-cloud-arrow-down"></i>
+                    </button>
+                    <!-- Dropdown Data Menu -->
+                    <div class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                        <div class="p-1">
+                            <button onclick="exportCSV()" class="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
+                                <i class="fas fa-file-export w-4 text-center"></i> Экспорт CSV
+                            </button>
+                            <label class="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2 cursor-pointer">
+                                <i class="fas fa-file-import w-4 text-center"></i> Импорт CSV
+                                <input type="file" id="import-file" accept=".csv" class="hidden" onchange="importCSV(event)">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories Manager Button -->
+                <button onclick="openModal('category')" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm" title="Управление категориями">
+                    <i class="fas fa-tags"></i>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button onclick="toggleTheme()" id="theme-toggle" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                    <i class="fas fa-moon"></i>
+                </button>
+                
+                <!-- Main Action Button -->
+                <button onclick="openModal('transaction')" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2">
+                    <i class="fas fa-plus"></i> Запись
+                </button>
+            </div>
+        </header>
+
+        <!-- Wallets Section -->
+        <div class="mb-8">
+            <div class="flex justify-between items-end mb-3">
+                <h2 class="text-lg font-semibold text-slate-800 dark:text-white">Счета (Кошельки)</h2>
+                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Общий баланс: <span id="total-global-balance" class="text-slate-900 dark:text-white font-bold">0 ₴</span></span>
+            </div>
+            
+            <div class="flex overflow-x-auto gap-4 pb-2 no-scrollbar snap-x" id="wallets-container">
+                <!-- Wallets generated by JS -->
+            </div>
+        </div>
+
+        <!-- Global Summary -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+            <!-- Income -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Доходы (мес)</p>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white" id="summary-income">0 ₴</h2>
+            </div>
+
+            <!-- Expense -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Расходы (мес)</p>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white" id="summary-expense">0 ₴</h2>
+            </div>
+
+            <!-- Net Balance / Economy -->
+            <div class="col-span-2 md:col-span-1 bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 relative overflow-hidden">
+                <div class="absolute right-0 top-0 opacity-10 dark:opacity-5 transform translate-x-4 -translate-y-4">
+                    <i class="fas fa-piggy-bank text-8xl text-indigo-500"></i>
+                </div>
+                <div class="flex items-center gap-3 mb-2 relative z-10">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <i class="fas fa-scale-balanced"></i>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Чистая дельта</p>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white relative z-10" id="summary-net">0 ₴</h2>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Chart & Budgets & Subs -->
+            <div class="xl:col-span-1 space-y-6">
+                
+                <!-- Chart -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 flex flex-col">
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4">Структура расходов</h3>
+                    <div class="relative flex-1 flex items-center justify-center min-h-[220px]">
+                        <canvas id="expenseChart"></canvas>
+                        <div id="no-data-chart" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 hidden">
+                            <i class="fas fa-chart-pie text-4xl mb-2 opacity-50"></i>
+                            <span class="text-sm">Нет данных за период</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Limits (Budgets) -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white">Лимиты по категориям</h3>
+                        <button onclick="openModal('budget')" class="text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-sm font-medium"><i class="fas fa-sliders"></i> Настроить</button>
+                    </div>
+                    <div id="budgets-container" class="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        <!-- Budgets generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Subscriptions -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white">Подписки</h3>
+                        <button onclick="openModal('subscription')" class="text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 w-8 h-8 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30 flex items-center justify-center transition-colors"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="subscriptions-container" class="space-y-3">
+                        <!-- Subscriptions generated by JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Table -->
+            <div class="xl:col-span-2 flex flex-col space-y-6">
+                
+                <!-- Transaction Table -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50 flex-1 flex flex-col min-h-[500px]">
+                    <!-- Table Header & Controls -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white">История операций</h3>
+                        
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <!-- Search -->
+                            <div class="relative flex-1 sm:w-48">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="search-input" placeholder="Поиск..." class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white transition-all">
+                            </div>
+                            <!-- Filter -->
+                            <select id="filter-period" class="py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white transition-all appearance-none cursor-pointer">
+                                <option value="all">Все время</option>
+                                <option value="month" selected>Этот месяц</option>
+                                <option value="week">Эта неделя</option>
+                                <option value="today">Сегодня</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Table Body -->
+                    <div class="overflow-x-auto flex-1 custom-scrollbar -mx-5 px-5">
+                        <table class="w-full text-left border-collapse whitespace-nowrap min-w-[600px]">
+                            <thead>
+                                <tr class="text-slate-400 dark:text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50">
+                                    <th class="pb-3 font-medium w-24">Дата</th>
+                                    <th class="pb-3 font-medium">Счет</th>
+                                    <th class="pb-3 font-medium">Категория</th>
+                                    <th class="pb-3 font-medium w-full">Описание</th>
+                                    <th class="pb-3 font-medium text-right pr-4">Сумма</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-body" class="text-sm align-middle">
+                                <!-- Rows will be populated by JS -->
+                            </tbody>
+                        </table>
+                        
+                        <!-- Empty State -->
+                        <div id="table-empty-state" class="hidden flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
+                            <div class="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                                <i class="fas fa-file-invoice-dollar text-2xl"></i>
+                            </div>
+                            <p>Нет операций за этот период</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OVERLAYS & MODALS -->
+<div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4 transition-opacity opacity-0 duration-200">
+    
+    <!-- 1. TRANSACTION MODAL -->
+    <div id="transaction-modal" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden hidden transform scale-95 transition-all duration-200">
+        <!-- Header Tabs -->
+        <div class="flex border-b border-slate-100 dark:border-slate-700">
+            <button id="tab-expense" onclick="switchTransactionType('expense')" class="flex-1 py-4 text-center font-semibold text-red-600 border-b-2 border-red-600 bg-red-50/50 dark:bg-red-900/10 transition-colors">
+                Расход
+            </button>
+            <button id="tab-income" onclick="switchTransactionType('income')" class="flex-1 py-4 text-center font-medium text-slate-500 hover:text-emerald-600 dark:text-slate-400 border-b-2 border-transparent transition-colors">
+                Доход
+            </button>
+        </div>
+        
+        <form id="transaction-form" class="p-6 space-y-4">
+            <input type="hidden" id="trans-id">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Amount -->
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Сумма (₴)</label>
+                    <input type="number" id="trans-amount" required min="0.01" step="0.01" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xl font-bold dark:text-white transition-all" placeholder="0.00">
+                </div>
+                
+                <!-- Account -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Счет</label>
+                    <div class="relative">
+                        <select id="trans-account" required class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white appearance-none text-sm">
+                            <!-- Populated via JS -->
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <!-- Date -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Дата</label>
+                    <input type="date" id="trans-date" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white text-sm">
+                </div>
+            </div>
+            
+            <!-- Category -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Категория</label>
+                <div class="relative">
+                    <select id="trans-category" required class="w-full pl-3 pr-8 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white appearance-none">
+                        <!-- Populated via JS -->
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Описание / Заметка</label>
+                <input type="text" id="trans-desc" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white transition-all" placeholder="Например: Аренда, Зарплата, Продукты...">
+            </div>
+
+            <!-- Buttons -->
+            <div class="pt-2 flex gap-3">
+                <button type="button" id="btn-delete" onclick="deleteCurrentTransaction()" class="hidden px-4 py-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-xl hover:bg-red-200 dark:hover:bg-red-900/50 font-medium transition-colors">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors">Отмена</button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium shadow-md shadow-indigo-200 dark:shadow-none transition-colors">Сохранить</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 2. BUDGET LIMITS MODAL -->
+    <div id="budget-modal" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden hidden transform scale-95 transition-all duration-200 flex flex-col max-h-[80vh]">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white">Настройка лимитов</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto custom-scrollbar space-y-4" id="budget-forms-container">
+            <!-- Filled by JS -->
+        </div>
+        <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
+            <button onclick="saveBudgets()" class="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium">Сохранить всё</button>
+        </div>
+    </div>
+
+    <!-- 3. SUBSCRIPTION MODAL -->
+    <div id="subscription-modal" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden hidden transform scale-95 transition-all duration-200">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white">Новая подписка</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form id="subscription-form" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Название (Сервис)</label>
+                <input type="text" id="sub-name" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white" placeholder="Netflix, Spotify...">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Сумма</label>
+                    <input type="number" id="sub-amount" required min="1" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">День месяца</label>
+                    <input type="number" id="sub-day" required min="1" max="31" value="1" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Списывать со счета</label>
+                <select id="sub-account" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white">
+                </select>
+            </div>
+            <button type="submit" class="w-full py-2 bg-indigo-600 text-white rounded-xl font-medium mt-4">Добавить подписку</button>
+        </form>
+    </div>
+
+    <!-- 4. CATEGORIES MANAGER MODAL -->
+    <div id="category-modal" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden hidden transform scale-95 transition-all duration-200 flex flex-col max-h-[85vh]">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white">Управление категориями</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        
+        <!-- Tab Switches inside Modal -->
+        <div class="flex border-b border-slate-100 dark:border-slate-700">
+            <button id="cat-tab-expense" onclick="switchCategoryType('expense')" class="flex-1 py-3 text-center font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/20 transition-colors">
+                Расходы
+            </button>
+            <button id="cat-tab-income" onclick="switchCategoryType('income')" class="flex-1 py-3 text-center font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 border-b-2 border-transparent transition-colors">
+                Доходы
+            </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            <!-- Dynamic list -->
+            <div id="category-list-container" class="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                <!-- Managed items here -->
+            </div>
+            
+            <hr class="border-slate-100 dark:border-slate-700" />
+            
+            <!-- Category Add Form -->
+            <form id="add-category-form" onsubmit="addCategory(event)" class="space-y-3">
+                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Добавить категорию</h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Название</label>
+                        <input type="text" id="new-cat-name" required placeholder="Например: Книги, Спорт..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Иконка</label>
+                        <select id="new-cat-icon" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white text-sm">
+                            <option value="fa-tag">🏷️ Ярлык</option>
+                            <option value="fa-basket-shopping">🛒 Продукты</option>
+                            <option value="fa-car">🚗 Транспорт</option>
+                            <option value="fa-house">🏠 Жилье</option>
+                            <option value="fa-ticket">🎟️ Развлечения</option>
+                            <option value="fa-heart-pulse">❤️ Здоровье</option>
+                            <option value="fa-bag-shopping">🛍️ Покупки</option>
+                            <option value="fa-utensils">🍴 Еда/Кафе</option>
+                            <option value="fa-plane">✈️ Путешествия</option>
+                            <option value="fa-dumbbell">💪 Спорт</option>
+                            <option value="fa-graduation-cap">🎓 Обучение</option>
+                            <option value="fa-gamepad">🎮 Игры</option>
+                            <option value="fa-money-bill-wave">💵 Зарплата</option>
+                            <option value="fa-laptop-code">💻 Фриланс</option>
+                            <option value="fa-gift">🎁 Подарки</option>
+                            <option value="fa-coins">🪙 Проценты</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Цвет</label>
+                        <input type="color" id="new-cat-color" value="#4f46e5" class="w-full h-9 bg-transparent border-none rounded-xl cursor-pointer">
+                    </div>
+                </div>
+                <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm transition-colors mt-2">
+                    Создать
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 z-[60] hidden">
+    <i id="toast-icon" class="fas fa-check-circle text-emerald-400 dark:text-emerald-500"></i>
+    <span id="toast-message" class="font-medium text-sm">Успешно</span>
+</div>
+
+<script>
+    // --- 1. DATA MODELS & CONSTANTS ---
+    const DEFAULT_CATEGORIES = {
+        expense: {
+            'Продукты': { color: '#3b82f6', icon: 'fa-basket-shopping' },
+            'Транспорт': { color: '#f59e0b', icon: 'fa-car' },
+            'Жилье и ЖКХ': { color: '#10b981', icon: 'fa-house' },
+            'Развлечения': { color: '#8b5cf6', icon: 'fa-ticket' },
+            'Здоровье': { color: '#ef4444', icon: 'fa-heart-pulse' },
+            'Шопинг': { color: '#ec4899', icon: 'fa-bag-shopping' },
+            'Кафе и Рестораны': { color: '#f97316', icon: 'fa-utensils' },
+            'Другое': { color: '#64748b', icon: 'fa-box' }
+        },
+        income: {
+            'Зарплата': { color: '#10b981', icon: 'fa-money-bill-wave' },
+            'Фриланс': { color: '#3b82f6', icon: 'fa-laptop-code' },
+            'Подарки': { color: '#ec4899', icon: 'fa-gift' },
+            'Кэшбек / Проценты': { color: '#f59e0b', icon: 'fa-coins' },
+            'Другое': { color: '#64748b', icon: 'fa-box' }
+        }
+    };
+
+    const DEFAULT_ACCOUNTS = [
+        { id: 'monobank', name: 'Monobank', icon: 'fa-credit-card', color: 'bg-black text-white dark:bg-slate-800' },
+        { id: 'cash', name: 'Наличные', icon: 'fa-wallet', color: 'bg-emerald-600 text-white' },
+        { id: 'savings', name: 'Отложено', icon: 'fa-piggy-bank', color: 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-md' }
+    ];
+
+    // --- 2. STATE ---
+    let state = {
+        transactions: JSON.parse(localStorage.getItem('fin_transactions')) || [],
+        limits: JSON.parse(localStorage.getItem('fin_limits')) || {},
+        subscriptions: JSON.parse(localStorage.getItem('fin_subs')) || [],
+        categories: JSON.parse(localStorage.getItem('fin_categories')) || DEFAULT_CATEGORIES,
+        savingsGoal: parseFloat(localStorage.getItem('fin_savings_goal')) || 25000,
+        isDark: localStorage.getItem('fin_theme') === 'dark',
+        currentTransType: 'expense', // 'expense' or 'income'
+        currentCategoryType: 'expense'
+    };
+
+    let chartInstance = null;
+    let activeModal = null;
+
+    // Formatter for currency
+    const formatMoney = (amount) => new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH', maximumFractionDigits: 0 }).format(amount);
+
+    // Dynamic style generator for tags
+    function getCategoryBadgeHtml(type, catName) {
+        const catDict = state.categories[type] || {};
+        const catInfo = catDict[catName] || { color: '#64748b', icon: 'fa-box' };
+        const color = catInfo.color;
+        const icon = catInfo.icon;
+        
+        return `
+            <span style="background-color: ${color}1a; color: ${color};" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium">
+                <i class="fas ${icon}"></i> ${catName}
+            </span>
+        `;
+    }
+
+    // --- 3. INIT APP ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Apply theme
+        if (state.isDark) document.documentElement.classList.add('dark');
+        
+        // Setup Date Header
+        const dateOptions = { month: 'long', year: 'numeric' };
+        let dateStr = new Date().toLocaleDateString('ru-RU', dateOptions);
+        document.getElementById('current-date-header').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+        // Populate Selects
+        populateAccountSelects();
+        
+        // Setup Listeners
+        document.getElementById('search-input').addEventListener('input', updateDashboard);
+        document.getElementById('filter-period').addEventListener('change', updateDashboard);
+        
+        // Forms
+        document.getElementById('transaction-form').addEventListener('submit', handleTransactionSubmit);
+        document.getElementById('subscription-form').addEventListener('submit', handleSubscriptionSubmit);
+
+        // Run Main Render
+        updateDashboard();
+    });
+
+    // --- 4. CORE RENDER LOGIC ---
+    function updateDashboard() {
+        saveState();
+        
+        // 1. Get filtered data
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const period = document.getElementById('filter-period').value;
+        const now = new Date();
+        
+        let filtered = state.transactions.filter(t => {
+            // Search filter
+            if (searchTerm && !t.desc.toLowerCase().includes(searchTerm) && !t.category.toLowerCase().includes(searchTerm)) return false;
+            
+            // Date filter
+            const tDate = new Date(t.date);
+            if (period === 'today') {
+                return tDate.toDateString() === now.toDateString();
+            } else if (period === 'week') {
+                const firstDay = new Date(now.setDate(now.getDate() - now.getDay() + 1));
+                return tDate >= firstDay;
+            } else if (period === 'month') {
+                return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+            }
+            return true;
+        });
+
+        // Sort by date desc
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // 2. Render UI Components
+        renderTable(filtered);
+        renderSummary(); // Summary based on current month
+        renderWallets();
+        renderBudgets();
+        renderSubscriptions();
+        renderChart(filtered.filter(t => t.type === 'expense')); // Chart only for expenses
+    }
+
+    function saveState() {
+        localStorage.setItem('fin_transactions', JSON.stringify(state.transactions));
+        localStorage.setItem('fin_limits', JSON.stringify(state.limits));
+        localStorage.setItem('fin_subs', JSON.stringify(state.subscriptions));
+        localStorage.setItem('fin_categories', JSON.stringify(state.categories));
+        localStorage.setItem('fin_theme', state.isDark ? 'dark' : 'light');
+    }
+
+    function renderWallets() {
+        const container = document.getElementById('wallets-container');
+        container.innerHTML = '';
+        
+        let globalTotal = 0;
+
+        DEFAULT_ACCOUNTS.forEach(acc => {
+            // Calculate balance: Incomes - Expenses for this account
+            const accTrans = state.transactions.filter(t => t.accountId === acc.id);
+            const balance = accTrans.reduce((sum, t) => {
+                return sum + (t.type === 'income' ? parseFloat(t.amount) : -parseFloat(t.amount));
+            }, 0);
+            
+            globalTotal += balance;
+
+            const card = document.createElement('div');
+            card.className = `flex-none w-52 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700/50 flex flex-col justify-between ${acc.color} relative overflow-hidden group`;
+            
+            // Decorative background icon
+            const bgIcon = document.createElement('i');
+            bgIcon.className = `fas ${acc.icon} absolute right-0 bottom-0 text-5xl opacity-10 transform translate-x-2 translate-y-2 group-hover:scale-110 transition-transform`;
+            
+            let extraGoalHtml = '';
+            if (acc.id === 'savings') {
+                const percent = state.savingsGoal > 0 ? Math.min((balance / state.savingsGoal) * 100, 100) : 0;
+                extraGoalHtml = `
+                    <div class="mt-3 pt-2 border-t border-white/20 text-[10px] opacity-90 z-10 relative">
+                        <div class="flex justify-between items-center mb-1">
+                            <span>Цель: <span id="savings-goal-val" onclick="editSavingsGoal(event)" class="font-bold underline cursor-pointer hover:text-amber-100">${formatMoney(state.savingsGoal)}</span></span>
+                            <span class="font-bold">${percent.toFixed(0)}%</span>
+                        </div>
+                        <div class="w-full bg-white/20 rounded-full h-1">
+                            <div class="bg-white h-1 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="relative z-10 flex-1 flex flex-col justify-between">
+                    <div class="flex items-center gap-2 mb-3 opacity-95">
+                        <i class="fas ${acc.icon}"></i>
+                        <span class="font-medium text-xs tracking-wider uppercase">${acc.name}</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold tracking-tight">${formatMoney(balance)}</h3>
+                    </div>
+                </div>
+                ${extraGoalHtml}
+            `;
+            card.appendChild(bgIcon);
+            container.appendChild(card);
+        });
+
+        document.getElementById('total-global-balance').textContent = formatMoney(globalTotal);
+    }
+
+    function editSavingsGoal(event) {
+        event.stopPropagation();
+        const container = document.getElementById('savings-goal-val');
+        container.innerHTML = `<input type="number" id="temp-savings-input" value="${state.savingsGoal}" class="w-16 px-1 border-b border-white outline-none bg-transparent text-white font-bold text-[10px] text-center" style="color: white !important;">`;
+        const input = document.getElementById('temp-savings-input');
+        input.focus();
+        
+        input.addEventListener('blur', saveNewSavingsGoal);
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveNewSavingsGoal.call(this);
+        });
+    }
+
+    function saveNewSavingsGoal() {
+        let val = parseFloat(this.value);
+        if (!isNaN(val) && val >= 0) {
+            state.savingsGoal = val;
+            localStorage.setItem('fin_savings_goal', val);
+        }
+        updateDashboard();
+        showToast('Цель сбережений обновлена');
+    }
+
+    function renderSummary() {
+        const now = new Date();
+        const currentMonthTrans = state.transactions.filter(t => {
+            const d = new Date(t.date);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+
+        const totalIncome = currentMonthTrans.filter(t => t.type === 'income').reduce((acc, t) => acc + parseFloat(t.amount), 0);
+        const totalExpense = currentMonthTrans.filter(t => t.type === 'expense').reduce((acc, t) => acc + parseFloat(t.amount), 0);
+        const net = totalIncome - totalExpense;
+
+        document.getElementById('summary-income').textContent = formatMoney(totalIncome);
+        document.getElementById('summary-expense').textContent = formatMoney(totalExpense);
+        
+        const netEl = document.getElementById('summary-net');
+        netEl.textContent = formatMoney(net);
+        
+        if (net > 0) {
+            netEl.className = "text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 relative z-10";
+        } else if (net < 0) {
+            netEl.className = "text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400 relative z-10";
+        } else {
+            netEl.className = "text-xl sm:text-2xl font-bold text-slate-900 dark:text-white relative z-10";
+        }
+    }
+
+    function renderTable(transactions) {
+        const tbody = document.getElementById('transactions-body');
+        const emptyState = document.getElementById('table-empty-state');
+        
+        tbody.innerHTML = '';
+
+        if (transactions.length === 0) {
+            emptyState.classList.remove('hidden');
+            emptyState.classList.add('flex');
+            return;
+        }
+        
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+
+        transactions.forEach(t => {
+            const isExp = t.type === 'expense';
+            const accName = DEFAULT_ACCOUNTS.find(a => a.id === t.accountId)?.name || 'Неизвестно';
+            const dateStr = new Date(t.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+            
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group";
+            tr.onclick = () => editTransaction(t.id); // Click to edit
+            
+            tr.innerHTML = `
+                <td class="py-3 text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap">${dateStr}</td>
+                <td class="py-3 text-slate-600 dark:text-slate-300 text-sm whitespace-nowrap">
+                    <i class="fas fa-wallet text-slate-400 mr-1 text-xs"></i> ${accName}
+                </td>
+                <td class="py-3 whitespace-nowrap">
+                    ${getCategoryBadgeHtml(t.type, t.category)}
+                </td>
+                <td class="py-3 text-slate-800 dark:text-slate-200 text-sm truncate max-w-[150px] sm:max-w-xs font-medium" title="${t.desc}">${t.desc || '—'}</td>
+                <td class="py-3 text-right font-bold whitespace-nowrap ${isExp ? 'text-slate-900 dark:text-white' : 'text-emerald-600 dark:text-emerald-400'}">
+                    ${isExp ? '-' : '+'}${formatMoney(t.amount)}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderBudgets() {
+        const container = document.getElementById('budgets-container');
+        container.innerHTML = '';
+        
+        const now = new Date();
+        const currentExpenses = state.transactions.filter(t => t.type === 'expense' && new Date(t.date).getMonth() === now.getMonth());
+        
+        let hasLimits = false;
+
+        Object.keys(state.categories.expense).forEach(cat => {
+            const limit = state.limits[cat];
+            if (!limit) return; // Skip if no limit set for this category
+            hasLimits = true;
+
+            const spent = currentExpenses.filter(t => t.category === cat).reduce((acc, t) => acc + parseFloat(t.amount), 0);
+            const percent = Math.min((spent / limit) * 100, 100);
+            const catInfo = state.categories.expense[cat] || { color: '#cbd5e1', icon: 'fa-box' };
+            
+            let colorClass = `bg-[${catInfo.color}]`;
+            let inlineStyleColor = `background-color: ${catInfo.color}`;
+            if (percent > 90) {
+                inlineStyleColor = `background-color: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);`;
+            } else if (percent > 75) {
+                inlineStyleColor = `background-color: #f59e0b;`;
+            }
+
+            container.innerHTML += `
+                <div class="mb-3">
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <i class="fas ${catInfo.icon} w-4 text-center" style="color: ${catInfo.color};"></i> ${cat}
+                        </span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400"><b class="${percent > 90 ? 'text-red-500' : 'text-slate-800 dark:text-slate-200'}">${spent.toLocaleString('ru')}</b> / ${limit.toLocaleString('ru')} ₴</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all duration-1000 ease-out" style="width: ${percent}%; ${inlineStyleColor}"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (!hasLimits) {
+            container.innerHTML = `<div class="text-center text-slate-400 text-sm py-4">Лимиты не установлены. Нажмите "Настроить".</div>`;
+        }
+    }
+
+    function renderSubscriptions() {
+        const container = document.getElementById('subscriptions-container');
+        container.innerHTML = '';
+
+        if (state.subscriptions.length === 0) {
+            container.innerHTML = `<div class="text-center text-slate-400 text-sm py-4">Нет активных подписок</div>`;
+            return;
+        }
+
+        const today = new Date().getDate();
+
+        state.subscriptions.forEach((sub, index) => {
+            const acc = DEFAULT_ACCOUNTS.find(a => a.id === sub.accountId);
+            const isDueSoon = sub.day >= today && sub.day <= today + 3;
+            
+            container.innerHTML += `
+                <div class="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                            <i class="fas fa-rotate"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-slate-800 dark:text-white">${sub.name}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Каждое ${sub.day} число &bull; ${acc ? acc.name : 'Счет'}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-sm text-slate-900 dark:text-white">${formatMoney(sub.amount)}</p>
+                        <button onclick="paySubscription(${index})" class="text-xs mt-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 rounded hover:bg-indigo-200 transition-colors font-medium ${isDueSoon ? 'animate-pulse bg-indigo-200' : ''}">
+                            Оплатить
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function renderChart(expenses) {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        const noDataEl = document.getElementById('no-data-chart');
+        
+        if (chartInstance) chartInstance.destroy();
+
+        if (expenses.length === 0) {
+            noDataEl.classList.remove('hidden');
+            return;
+        }
+        noDataEl.classList.add('hidden');
+
+        // Group by category
+        const sums = {};
+        expenses.forEach(t => { sums[t.category] = (sums[t.category] || 0) + parseFloat(t.amount); });
+
+        const labels = Object.keys(sums);
+        const data = Object.values(sums);
+        const bgColors = labels.map(l => state.categories.expense[l]?.color || '#cbd5e1');
+
+        Chart.defaults.color = state.isDark ? '#94a3b8' : '#64748b';
+        Chart.defaults.font.family = 'Inter';
+
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: bgColors,
+                    borderWidth: state.isDark ? 2 : 0,
+                    borderColor: state.isDark ? '#1e293b' : '#fff',
+                    hoverOffset: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: state.isDark ? '#0f172a' : '#1e293b',
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 14 },
+                        callbacks: {
+                            label: function(ctx) {
+                                return ` ${formatMoney(ctx.parsed)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // --- STREAMING_CHUNK:Executing dynamic operations logic... ---
+    // --- 5. LOGIC & ACTIONS ---
+
+    function switchTransactionType(type) {
+        state.currentTransType = type;
+        const tabExp = document.getElementById('tab-expense');
+        const tabInc = document.getElementById('tab-income');
+        const catSelect = document.getElementById('trans-category');
+        
+        // UI Tabs update
+        if (type === 'expense') {
+            tabExp.className = "flex-1 py-4 text-center font-semibold text-red-600 border-b-2 border-red-600 bg-red-50/50 dark:bg-red-900/10 transition-colors";
+            tabInc.className = "flex-1 py-4 text-center font-medium text-slate-500 hover:text-emerald-600 dark:text-slate-400 border-b-2 border-transparent transition-colors";
+        } else {
+            tabInc.className = "flex-1 py-4 text-center font-semibold text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/10 transition-colors";
+            tabExp.className = "flex-1 py-4 text-center font-medium text-slate-500 hover:text-red-600 dark:text-slate-400 border-b-2 border-transparent transition-colors";
+        }
+
+        // Options update
+        catSelect.innerHTML = '';
+        const dict = type === 'expense' ? state.categories.expense : state.categories.income;
+        Object.keys(dict).forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            catSelect.appendChild(opt);
+        });
+    }
+
+    function handleTransactionSubmit(e) {
+        e.preventDefault();
+        const idInput = document.getElementById('trans-id').value;
+        
+        const transData = {
+            id: idInput || Date.now().toString(),
+            type: state.currentTransType,
+            amount: document.getElementById('trans-amount').value,
+            accountId: document.getElementById('trans-account').value,
+            date: document.getElementById('trans-date').value,
+            category: document.getElementById('trans-category').value,
+            desc: document.getElementById('trans-desc').value.trim()
+        };
+
+        if (idInput) {
+            // Edit existing
+            const idx = state.transactions.findIndex(t => t.id === idInput);
+            if(idx > -1) state.transactions[idx] = transData;
+            showToast('Запись обновлена');
+        } else {
+            // Add new
+            state.transactions.push(transData);
+            showToast('Запись добавлена');
+        }
+
+        updateDashboard();
+        closeModal();
+    }
+
+    function editTransaction(id) {
+        const trans = state.transactions.find(t => t.id === id);
+        if(!trans) return;
+
+        openModal('transaction');
+        switchTransactionType(trans.type);
+        
+        document.getElementById('trans-id').value = trans.id;
+        document.getElementById('trans-amount').value = trans.amount;
+        document.getElementById('trans-account').value = trans.accountId;
+        document.getElementById('trans-date').value = trans.date;
+        document.getElementById('trans-category').value = trans.category;
+        document.getElementById('trans-desc').value = trans.desc;
+        
+        // Show delete button
+        document.getElementById('btn-delete').classList.remove('hidden');
+    }
+
+    function deleteCurrentTransaction() {
+        const id = document.getElementById('trans-id').value;
+        state.transactions = state.transactions.filter(t => t.id !== id);
+        updateDashboard();
+        closeModal();
+        showToast('Запись удалена');
+    }
+
+    function renderBudgetForms() {
+        const container = document.getElementById('budget-forms-container');
+        container.innerHTML = '';
+        
+        Object.keys(state.categories.expense).forEach(cat => {
+            const currentLimit = state.limits[cat] || '';
+            const catInfo = state.categories.expense[cat] || { color: '#cbd5e1', icon: 'fa-box' };
+            
+            container.innerHTML += `
+                <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <i class="fas ${catInfo.icon} w-4" style="color: ${catInfo.color};"></i> ${cat}
+                    </span>
+                    <div class="relative w-28">
+                        <input type="number" id="limit-${cat}" value="${currentLimit}" placeholder="Без лимита" class="w-full pl-3 pr-6 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-right outline-none focus:border-indigo-500 dark:text-white">
+                        <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs">₴</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function saveBudgets() {
+        Object.keys(state.categories.expense).forEach(cat => {
+            const val = document.getElementById(`limit-${cat}`).value;
+            if (val && parseFloat(val) > 0) {
+                state.limits[cat] = parseFloat(val);
+            } else {
+                delete state.limits[cat];
+            }
+        });
+        updateDashboard();
+        closeModal();
+        showToast('Лимиты сохранены');
+    }
+
+    function handleSubscriptionSubmit(e) {
+        e.preventDefault();
+        const newSub = {
+            id: Date.now().toString(),
+            name: document.getElementById('sub-name').value,
+            amount: document.getElementById('sub-amount').value,
+            day: parseInt(document.getElementById('sub-day').value),
+            accountId: document.getElementById('sub-account').value
+        };
+        state.subscriptions.push(newSub);
+        updateDashboard();
+        closeModal();
+        showToast('Подписка добавлена');
+    }
+
+    function paySubscription(index) {
+        const sub = state.subscriptions[index];
+        const newTrans = {
+            id: Date.now().toString(),
+            type: 'expense',
+            amount: sub.amount,
+            category: 'Другое',
+            desc: `Оплата подписки: ${sub.name}`,
+            date: new Date().toISOString().split('T')[0],
+            accountId: sub.accountId
+        };
+        state.transactions.push(newTrans);
+        updateDashboard();
+        showToast(`Оплачено: ${sub.name}`);
+    }
+
+    // --- STREAMING_CHUNK:Dynamic categories operations script... ---
+    // --- CATEGORIES MANAGEMENT ---
+    function switchCategoryType(type) {
+        state.currentCategoryType = type;
+        const tabExp = document.getElementById('cat-tab-expense');
+        const tabInc = document.getElementById('cat-tab-income');
+        
+        if (type === 'expense') {
+            tabExp.className = "flex-1 py-3 text-center font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/20 transition-colors";
+            tabInc.className = "flex-1 py-3 text-center font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 border-b-2 border-transparent transition-colors";
+        } else {
+            tabInc.className = "flex-1 py-3 text-center font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/20 transition-colors";
+            tabExp.className = "flex-1 py-3 text-center font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 border-b-2 border-transparent transition-colors";
+        }
+        renderCategoryManagementList();
+    }
+
+    function renderCategoryManagementList() {
+        const type = state.currentCategoryType || 'expense';
+        const container = document.getElementById('category-list-container');
+        container.innerHTML = '';
+        
+        const list = state.categories[type];
+        Object.keys(list).forEach(catName => {
+            const info = list[catName];
+            const isDefaultOther = catName === 'Другое';
+            
+            const div = document.createElement('div');
+            div.className = "flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800";
+            
+            div.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span style="background-color: ${info.color}1a; color: ${info.color};" class="w-8 h-8 rounded-full flex items-center justify-center text-sm">
+                        <i class="fas ${info.icon}"></i>
+                    </span>
+                    <span class="text-sm font-medium text-slate-800 dark:text-slate-200">${catName}</span>
+                </div>
+                ${!isDefaultOther ? `
+                    <button onclick="deleteCategory('${type}', '${catName}')" class="text-slate-400 hover:text-red-500 p-1.5 transition-colors" title="Удалить категорию">
+                        <i class="fas fa-trash-alt text-sm"></i>
+                    </button>
+                ` : '<span class="text-xs text-slate-400 italic px-2">Системная</span>'}
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function addCategory(e) {
+        e.preventDefault();
+        const name = document.getElementById('new-cat-name').value.trim();
+        const type = state.currentCategoryType;
+        const icon = document.getElementById('new-cat-icon').value;
+        const color = document.getElementById('new-cat-color').value;
+
+        if(!name) return;
+        if(state.categories[type][name]) {
+            showToast('Категория уже существует');
+            return;
+        }
+
+        state.categories[type][name] = { color, icon };
+        document.getElementById('new-cat-name').value = '';
+        
+        saveState();
+        updateDashboard();
+        renderCategoryManagementList();
+        showToast(`Создано: ${name}`);
+    }
+
+    function deleteCategory(type, catName) {
+        if (catName === 'Другое') return;
+        
+        // Safety Fallback: Transfer active transactions to 'Другое'
+        state.transactions.forEach(t => {
+            if (t.type === type && t.category === catName) {
+                t.category = 'Другое';
+            }
+        });
+
+        // Also clean limits if exp
+        if (type === 'expense' && state.limits[catName]) {
+            delete state.limits[catName];
+        }
+
+        delete state.categories[type][catName];
+        
+        saveState();
+        updateDashboard();
+        renderCategoryManagementList();
+        showToast(`Удалено: ${catName}`);
+    }
+
+    // --- MODALS ENGINE ---
+    function openModal(modalId) {
+        const overlay = document.getElementById('modal-overlay');
+        const modalTrans = document.getElementById('transaction-modal');
+        const modalBudg = document.getElementById('budget-modal');
+        const modalSub = document.getElementById('subscription-modal');
+        const modalCat = document.getElementById('category-modal');
+        
+        // Reset and hide all
+        modalTrans.classList.add('hidden'); modalTrans.classList.remove('modal-enter');
+        modalBudg.classList.add('hidden'); modalBudg.classList.remove('modal-enter');
+        modalSub.classList.add('hidden'); modalSub.classList.remove('modal-enter');
+        modalCat.classList.add('hidden'); modalCat.classList.remove('modal-enter');
+        
+        document.getElementById('btn-delete').classList.add('hidden'); // hide delete by default
+
+        overlay.classList.remove('hidden');
+        setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+
+        if (modalId === 'transaction') {
+            document.getElementById('transaction-form').reset();
+            document.getElementById('trans-id').value = '';
+            document.getElementById('trans-date').valueAsDate = new Date();
+            switchTransactionType('expense'); // Default
+            activeModal = modalTrans;
+        } else if (modalId === 'budget') {
+            renderBudgetForms();
+            activeModal = modalBudg;
+        } else if (modalId === 'subscription') {
+            document.getElementById('subscription-form').reset();
+            activeModal = modalSub;
+        } else if (modalId === 'category') {
+            document.getElementById('add-category-form').reset();
+            switchCategoryType('expense');
+            activeModal = modalCat;
+        }
+
+        activeModal.classList.remove('hidden');
+        activeModal.classList.add('modal-enter');
+    }
+
+    function closeModal() {
+        const overlay = document.getElementById('modal-overlay');
+        overlay.classList.add('opacity-0');
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+            if(activeModal) {
+                activeModal.classList.add('hidden');
+                activeModal.classList.remove('modal-enter');
+            }
+        }, 200);
+    }
+
+    document.getElementById('modal-overlay').addEventListener('mousedown', (e) => {
+        if (e.target === document.getElementById('modal-overlay')) closeModal();
+    });
+
+    function populateAccountSelects() {
+        const selects = ['trans-account', 'sub-account'];
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.innerHTML = '';
+                DEFAULT_ACCOUNTS.forEach(acc => {
+                    const opt = document.createElement('option');
+                    opt.value = acc.id;
+                    opt.textContent = acc.name;
+                    el.appendChild(opt);
+                });
+            }
+        });
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toast-message').textContent = message;
+        
+        toast.classList.remove('hidden');
+        toast.classList.add('toast-enter');
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideUp 0.3s ease-in reverse forwards';
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.style.animation = '';
+                toast.classList.remove('toast-enter');
+            }, 300);
+        }, 3000);
+    }
+
+    function toggleTheme() {
+        state.isDark = !state.isDark;
+        if (state.isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        updateDashboard(); // Re-render for chart themes
+    }
+
+    function exportCSV() {
+        if(state.transactions.length === 0) {
+            showToast('Нет данных для экспорта');
+            return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "ID,Type,Date,Account,Category,Amount,Description\n";
+        state.transactions.forEach(t => {
+            let desc = t.desc ? t.desc.replace(/"/g, '""') : '';
+            let row = `${t.id},${t.type},${t.date},${t.accountId},${t.category},${t.amount},"${desc}"`;
+            csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `my_finances_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link); 
+        link.click();
+        document.body.removeChild(link);
+        showToast('Экспорт завершен');
+    }
+
+    function importCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            let importedCount = 0;
+
+            for(let i=1; i<lines.length; i++) {
+                if(!lines[i].trim()) continue;
+                const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(row && row.length >= 6) {
+                    const id = row[0].replace(/"/g,'');
+                    if(!state.transactions.find(t => t.id === id)) {
+                        state.transactions.push({
+                            id: id,
+                            type: row[1].replace(/"/g,''),
+                            date: row[2].replace(/"/g,''),
+                            accountId: row[3].replace(/"/g,''),
+                            category: row[4].replace(/"/g,''),
+                            amount: row[5].replace(/"/g,''),
+                            desc: row[6] ? row[6].replace(/(^"|"$)/g, '') : ''
+                        });
+                        importedCount++;
+                    }
+                }
+            }
+            updateDashboard();
+            showToast(`Импортировано записей: ${importedCount}`);
+            event.target.value = ''; // reset input
+        };
+        reader.readAsText(file);
+    }
+</script>
+</body>
+</html>
