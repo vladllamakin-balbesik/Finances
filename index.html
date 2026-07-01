@@ -402,7 +402,6 @@
 
 <script>
     // === СИНХРОНИЗАЦИЯ С GOOGLE ТАБЛИЦЕЙ ===
-    // Вставь сюда URL-адрес своего веб-приложения, скопированный из Шага 2
     const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbyy4oLZWYryW7HuhQtLE6vniNTh96PLtEjyWgIBiLiYUKTsd2kv7sOYf4thTlXlULQ/exec";
 
     // --- 1. DATA MODELS & CONSTANTS ---
@@ -547,7 +546,12 @@
         if (!CLOUD_API_URL || CLOUD_API_URL === "ВСТАВЬ_СЮДА_ССЫЛКУ_ИЗ_ШАГА_2") return;
         try {
             const res = await fetch(CLOUD_API_URL);
-            const cloudData = await res.json();
+            const textData = await res.text(); // Читаем как текст, чтобы избежать ошибки парсинга
+            
+            if (!textData || textData.trim() === "") return; // Защита от пустой строки
+            
+            const cloudData = JSON.parse(textData); 
+            
             if (cloudData && typeof cloudData === 'object' && !Array.isArray(cloudData)) {
                 if (cloudData.transactions) state.transactions = cloudData.transactions;
                 if (cloudData.limits) state.limits = cloudData.limits;
@@ -580,9 +584,12 @@
             categories: state.categories,
             savingsGoal: state.savingsGoal
         };
+        
         fetch(CLOUD_API_URL, {
             method: "POST",
-            mode: "no-cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8" // Явно указываем текст, чтобы избежать CORS preflight
+            },
             body: JSON.stringify(dataToSave)
         }).catch(e => console.error("Ошибка отправки данных в облако:", e));
     }
